@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KhetRakshak</title>
+  <meta name="description" content="Field-level, source-cited crop risk agent for Indian farmers">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23FFD43B' stroke='%23111' stroke-width='10'/><text x='50' y='70' font-size='60' text-anchor='middle'>🌾</text></svg>">
+  <link id="webfonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+<!-- ============================== NAVBAR ============================== -->
+<header class="nav">
+  <div class="nav-inner">
+    <a class="logo" href="#/" aria-label="KhetRakshak home">
+      <span class="logo-box"><i data-lucide="sprout"></i></span>
+      <span class="logo-text"><strong>KhetRakshak</strong><small data-i18n="sub_brand">KISAN RISK HUB</small></span>
+    </a>
+    <nav class="nav-links" id="nav-links" aria-label="Main">
+      <a href="#/" data-route="home"><i data-lucide="home"></i><span data-i18n="nav_home">Home</span></a>
+      <a href="#/app" data-route="app"><i data-lucide="layout-dashboard"></i><span data-i18n="nav_dashboard">Dashboard</span></a>
+      <a href="#/how" data-route="how"><i data-lucide="list-checks"></i><span data-i18n="nav_how">How it works</span></a>
+      <div class="more">
+        <button class="more-btn" aria-haspopup="true" aria-expanded="false" id="more-btn"><span data-i18n="nav_more">More</span> ▾</button>
+        <div class="more-menu" id="more-menu" role="menu">
+          <a role="menuitem" href="#/faq" data-i18n="nav_faq">FAQ</a>
+          <a role="menuitem" href="/api/health" target="_blank" rel="noopener" data-i18n="nav_status">System status</a>
+          <a role="menuitem" href="https://github.com" target="_blank" rel="noopener" id="repo-link">GitHub</a>
+        </div>
+      </div>
+    </nav>
+    <div class="nav-utils">
+      <button class="ubtn" id="btn-lang" aria-label="Switch language"><i data-lucide="languages"></i><span id="lang-label">हिंदी</span></button>
+      <button class="ubtn" id="btn-lowdata" aria-pressed="false" aria-label="Low data mode"><i data-lucide="gauge"></i><span data-i18n="low_data">Low data</span></button>
+      <a class="btn btn-primary" href="#/app"><i data-lucide="sparkles"></i><span data-i18n="cta_check">Check my field</span></a>
+    </div>
+    <button class="ubtn hamburger" id="btn-menu" aria-label="Open menu" aria-expanded="false"><i data-lucide="menu"></i></button>
+  </div>
+  <div class="drawer" id="drawer" hidden>
+    <a href="#/" data-i18n="nav_home">Home</a>
+    <a href="#/app" data-i18n="nav_dashboard">Dashboard</a>
+    <a href="#/how" data-i18n="nav_how">How it works</a>
+    <a href="#/faq" data-i18n="nav_faq">FAQ</a>
+    <a href="/api/health" target="_blank" rel="noopener" data-i18n="nav_status">System status</a>
+  </div>
+</header>
+
+<!-- ============================== TICKER ============================== -->
+<div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker-track"></div></div>
+<ul class="sr-only" id="ticker-static"></ul>
+<span class="lowdata-badge" id="lowdata-badge" hidden>LOW DATA ON</span>
+
+<main id="main">
+<!-- ============================== HOME ============================== -->
+<section id="view-home" class="view">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="badges">
+          <span class="pill pill-coral" data-i18n="badge_edition">✦ Theme 2 · Climate resilience</span>
+          <span class="pill pill-yellow" data-i18n="badge_bharat">Made for rural Bharat</span>
+          <span class="pill pill-mint" data-i18n="badge_live">Live data only</span>
+        </div>
+        <h1 class="hero-title">
+          <span class="line" data-i18n="hero_1">Know your crop.</span>
+          <span class="line"><span data-i18n="hero_2a">Protect </span><span class="hl hl-coral" data-i18n="hero_2b">your field.</span></span>
+          <span class="line"><span class="hl hl-yellow tilt-r" data-i18n="hero_3">With satellite AI.</span></span>
+        </h1>
+        <p class="lead" data-i18n="hero_lead">KhetRakshak watches your own field from space, compares the weather ahead with what is normal for your village, and sends a voice alert in your language — every advice backed by PAU, TNAU, ICAR or IMD documents.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="#/app"><i data-lucide="scan-search"></i><span data-i18n="cta_check">Check my field</span></a>
+          <a class="btn btn-lg" href="#/how"><i data-lucide="play"></i><span data-i18n="cta_how">How it works</span></a>
+        </div>
+      </div>
+      <div class="preview card tilt-l" aria-label="Live preview">
+        <div class="card-label"><i data-lucide="satellite"></i><span data-i18n="preview_label">Live system status</span></div>
+        <ul class="preview-list" id="preview-list"><li class="skeleton">&nbsp;</li><li class="skeleton">&nbsp;</li><li class="skeleton">&nbsp;</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="how">
+    <div class="wrap">
+      <span class="pill pill-white" data-i18n="how_kicker">How it works</span>
+      <h2 class="section-title" data-i18n="how_title">From satellite to your phone in four steps</h2>
+      <div class="steps">
+        <article class="card step"><span class="step-n">01</span><span class="ficon"><i data-lucide="map-pinned"></i></span><h3 data-i18n="s1_t">Draw your field</h3><p data-i18n="s1_d">Mark the boundary on the map, pick crop, sowing date and language.</p></article>
+        <article class="card step"><span class="step-n">02</span><span class="ficon"><i data-lucide="satellite-dish"></i></span><h3 data-i18n="s2_t">Agent checks the data</h3><p data-i18n="s2_d">Sentinel-2 greenness of your field, 16-day forecast vs 10 years of local weather, mandi prices.</p></article>
+        <article class="card step"><span class="step-n">03</span><span class="ficon"><i data-lucide="shield-check"></i></span><h3 data-i18n="s3_t">Verified advice</h3><p data-i18n="s3_d">Advice comes only from official documents. A verifier checks every number and citation and rejects anything unsupported.</p></article>
+        <article class="card step"><span class="step-n">04</span><span class="ficon"><i data-lucide="mic"></i></span><h3 data-i18n="s4_t">Voice alert</h3><p data-i18n="s4_d">You get a voice note on Telegram in Hindi, Tamil, Punjabi or English — and can ask back by voice.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="pill pill-white" data-i18n="feat_kicker">Why it is different</span>
+      <h2 class="section-title" data-i18n="feat_title">Not a district bulletin. Not a chatbot.</h2>
+      <div class="bento">
+        <article class="card bento-a bg-yellow"><span class="ficon"><i data-lucide="crosshair"></i></span><h3 data-i18n="f1_t">Your field, not your district</h3><p data-i18n="f1_d">Greenness is measured inside your own boundary, pixel by pixel, with clouds masked out.</p></article>
+        <article class="card bento-b"><span class="ficon"><i data-lucide="bell-ring"></i></span><h3 data-i18n="f2_t">Warns before it hits</h3><p data-i18n="f2_d">IMD heavy-rain and heat-wave criteria, checked against your village's own 10-year normal.</p></article>
+        <article class="card bento-c bg-coral"><span class="ficon"><i data-lucide="book-check"></i></span><h3 data-i18n="f3_t">Every claim has a source</h3><p data-i18n="f3_d">Page-level citations to PAU, TNAU, ICAR-CRIDA and IMD. No source → "contact your KVK".</p></article>
+        <article class="card bento-d"><span class="ficon"><i data-lucide="indian-rupee"></i></span><h3 data-i18n="f4_t">Money-aware</h3><p data-i18n="f4_d">Today's Agmarknet prices at nearby mandis, minus your own transport cost.</p></article>
+        <article class="card bento-e bg-mint"><span class="ficon"><i data-lucide="wifi-off"></i></span><h3 data-i18n="f5_t">Never breaks silently</h3><p data-i18n="f5_d">If a data source is down, the agent says so, uses a labelled cache or continues with what it has.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="pill pill-white" data-i18n="stats_kicker">Live from the server</span>
+      <div class="stats" id="stats">
+        <div class="stat"><span class="stat-n skeleton-text">—</span><span class="stat-l">…</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="wrap">
+      <span class="pill pill-white">FAQ</span>
+      <h2 class="section-title" data-i18n="faq_title">Questions farmers and judges ask</h2>
+      <div class="faq">
+        <details class="faq-item"><summary data-i18n="q1">Where does the data come from?</summary><p data-i18n="a1">Sentinel-2 satellite (ESA Copernicus via Microsoft Planetary Computer), Open-Meteo forecast and ERA5 history, Agmarknet mandi prices on data.gov.in, and official PAU, TNAU, ICAR-CRIDA and IMD documents. Nothing is made up.</p></details>
+        <details class="faq-item"><summary data-i18n="q2">What if it is cloudy?</summary><p data-i18n="a2">Cloudy pixels are removed. If the field is cloudy, the last clear view is used and the confidence is lowered — and the alert says so.</p></details>
+        <details class="faq-item"><summary data-i18n="q3">What if the AI makes a mistake?</summary><p data-i18n="a3">A verifier checks every number against the tool outputs and every advice against its cited page. Wrong drafts are sent back; anything still unsupported is replaced by "contact your local KVK".</p></details>
+        <details class="faq-item"><summary data-i18n="q4">Which crops and languages?</summary><p data-i18n="a4">Paddy, wheat and mustard in Punjab and Tamil Nadu today; Hindi, Tamil, Punjabi and English, by text or voice.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="wrap">
+      <h2 class="cta-title" data-i18n="band_title">Your field. Your language. Before the weather hits.</h2>
+      <a class="btn btn-dark btn-lg" href="#/app"><i data-lucide="arrow-right"></i><span data-i18n="cta_check">Check my field</span></a>
+    </div>
+  </section>
+</section>
+
+<!-- ============================== DASHBOARD ============================== -->
+<section id="view-app" class="view" hidden>
+  <div class="wrap app">
+    <div class="app-head">
+      <h1 class="app-title" data-i18n="dash_title">Field dashboard</h1>
+      <div id="health" class="health" aria-live="polite"></div>
+    </div>
+    <div class="layout">
+      <aside class="sidebar">
+        <section class="card">
+          <div class="card-head"><span class="card-label"><i data-lucide="tractor"></i><span data-i18n="fields">Fields</span></span>
+            <button id="btn-new" class="btn btn-sm btn-primary"><i data-lucide="plus"></i><span data-i18n="new_field">New field</span></button></div>
+          <ul id="field-list" class="field-list"><li class="skeleton">&nbsp;</li></ul>
+        </section>
+
+        <section id="new-field" class="card" hidden>
+          <ol class="wizard" aria-label="Steps">
+            <li class="wstep active" data-step="1"><span>1</span><small data-i18n="w1">Find</small></li>
+            <li class="wstep" data-step="2"><span>2</span><small data-i18n="w2">Draw</small></li>
+            <li class="wstep" data-step="3"><span>3</span><small data-i18n="w3">Details</small></li>
+          </ol>
+          <div class="field-row">
+            <label class="lbl" for="goto" data-i18n="goto_label">Go to lat, lon</label>
+            <div class="row"><input id="goto" class="input" placeholder="30.85, 75.70"><button id="btn-goto" class="btn btn-sm" aria-label="Go"><i data-lucide="locate-fixed"></i></button></div>
+          </div>
+          <p id="draw-status" class="hint" data-i18n="draw_hint">Click the ⬠ tool on the map and draw the field boundary.</p>
+          <form id="field-form" novalidate>
+            <label class="lbl"><span data-i18n="f_name">Field name</span><input class="input" name="name" required maxlength="80"></label>
+            <label class="lbl"><span data-i18n="f_farmer">Farmer name</span><input class="input" name="farmer_name" maxlength="80"></label>
+            <div class="row">
+              <label class="lbl"><span data-i18n="f_crop">Crop</span>
+                <select class="input" name="crop" required>
+                  <option value="paddy">Paddy / धान</option><option value="wheat">Wheat / गेहूँ</option>
+                  <option value="mustard">Mustard / सरसों</option><option value="cotton">Other: cotton</option>
+                </select></label>
+              <label class="lbl"><span data-i18n="f_sowing">Sowing date</span><input class="input" type="date" name="sowing_date"></label>
+            </div>
+            <div class="row">
+              <label class="lbl"><span data-i18n="f_lang">Alert language</span>
+                <select class="input" name="language">
+                  <option value="hi-IN">हिन्दी</option><option value="ta-IN">தமிழ்</option>
+                  <option value="pa-IN">ਪੰਜਾਬੀ</option><option value="en-IN">English</option>
+                </select></label>
+              <label class="lbl"><span data-i18n="f_rate">Transport ₹/qtl/km</span><input class="input" name="transport_rate_per_qtl_km" type="number" step="0.1" min="0"></label>
+            </div>
+            <p id="form-error" class="err" hidden><i data-lucide="alert-triangle"></i><span></span></p>
+            <button class="btn btn-primary w-full" type="submit"><i data-lucide="save"></i><span data-i18n="save_field">Save field</span></button>
+          </form>
+        </section>
+
+        <details class="card demo">
+          <summary class="card-label"><i data-lucide="plug-zap"></i><span data-i18n="demo_controls">Demo: break a data source</span></summary>
+          <p class="hint" data-i18n="demo_hint">Switch a live source off to watch the agent degrade gracefully.</p>
+          <div id="source-toggles"></div>
+        </details>
+      </aside>
+
+      <section class="content">
+        <div id="map" class="card map" role="region" aria-label="Field map"></div>
+
+        <div id="empty" class="card empty">
+          <span class="empty-art"><i data-lucide="map"></i></span>
+          <p data-i18n="empty_text">Pick a field on the left, or draw a new one on the map.</p>
+          <button class="btn btn-primary" id="btn-empty-new"><i data-lucide="plus"></i><span data-i18n="new_field">New field</span></button>
+        </div>
+
+        <section id="dashboard" hidden>
+          <div class="card field-head">
+            <div>
+              <span class="card-label"><i data-lucide="wheat"></i><span id="f-crop"></span></span>
+              <h2 id="f-name" class="big"></h2>
+              <p id="f-meta" class="hint"></p>
+              <span id="f-stage" class="pill pill-mint"></span>
+            </div>
+            <div class="head-actions">
+              <button id="btn-run" class="btn btn-primary"><i data-lucide="play"></i><span data-i18n="run_now">Run monitoring now</span></button>
+              <div class="row">
+                <input type="date" id="replay-date" class="input" aria-label="Replay date">
+                <button id="btn-replay" class="btn" title="Run the agent on a past date with archived data"><i data-lucide="history"></i><span data-i18n="replay">Replay</span></button>
+              </div>
+              <button id="btn-telegram" class="btn"><i data-lucide="send"></i><span data-i18n="link_tg">Link Telegram</span></button>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="card"><span class="card-label"><i data-lucide="cloud-rain"></i><span data-i18n="weather_title">Weather · 30 days back + 16 ahead</span></span><div class="chart"><canvas id="c-weather" aria-label="Weather chart"></canvas></div><p id="w-src" class="src"></p></div>
+            <div class="card"><span class="card-label"><i data-lucide="leaf"></i><span data-i18n="ndvi_title">Crop greenness (NDVI) · this field</span></span><div class="chart"><canvas id="c-ndvi" aria-label="NDVI chart"></canvas></div><p id="n-src" class="src"></p></div>
+          </div>
+
+          <div class="card"><span class="card-label"><i data-lucide="siren"></i><span data-i18n="risk_title">Risk scan · IMD criteria + this field's own history</span></span><div id="risks" class="risks"></div></div>
+
+          <div class="grid2">
+            <div class="card trace-card">
+              <span class="card-label"><i data-lucide="activity"></i><span data-i18n="trace_title">Live agent trace</span></span>
+              <ol id="trace" class="trace"><li class="hint" data-i18n="trace_empty">Press "Run monitoring now" or ask a question.</li></ol>
+            </div>
+            <div class="card">
+              <span class="card-label"><i data-lucide="message-square-warning"></i><span id="out-title" data-i18n="alert">Alert</span></span>
+              <div id="output" class="output"><p class="hint" data-i18n="no_alert">No alert yet.</p></div>
+              <div class="ask">
+                <label class="lbl" for="question" data-i18n="ask_title">Ask about this field</label>
+                <div class="row">
+                  <input id="question" class="input" maxlength="1500" placeholder="क्या इस हफ्ते सिंचाई करूँ?">
+                  <button id="btn-ask" class="btn btn-primary" aria-label="Ask"><i data-lucide="send-horizontal"></i></button>
+                  <button id="btn-mic" class="btn" aria-label="Record voice question"><i data-lucide="mic"></i></button>
+                </div>
+                <p id="ask-status" class="hint" aria-live="polite"></p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div><strong>KhetRakshak</strong><p data-i18n="footer_tag">Field-level crop risk agent. Built at Forge GenAI Hackathon 2026.</p></div>
+    <div class="fgroup"><span>DATA</span><a href="https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a" target="_blank" rel="noopener">Sentinel-2 L2A</a><a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a><a href="https://data.gov.in" target="_blank" rel="noopener">data.gov.in Agmarknet</a></div>
+    <div class="fgroup"><span>KNOWLEDGE</span><a href="https://www.pau.edu" target="_blank" rel="noopener">PAU Ludhiana</a><a href="https://agritech.tnau.ac.in" target="_blank" rel="noopener">TNAU Agritech</a><a href="https://icar-crida.res.in" target="_blank" rel="noopener">ICAR-CRIDA</a><a href="https://mausam.imd.gov.in" target="_blank" rel="noopener">IMD</a></div>
+    <div class="fgroup"><span>VOICE</span><a href="https://www.sarvam.ai" target="_blank" rel="noopener">Sarvam AI</a><a href="https://telegram.org" target="_blank" rel="noopener">Telegram</a></div>
+  </div>
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

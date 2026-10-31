@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.venv
+venv
+.git
+**/__pycache__
+data/rag_sources/raw
+scripts/smoke_report.json
+frontend
