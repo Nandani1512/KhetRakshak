@@ -33,6 +33,9 @@ def _sources_text(final: dict) -> str:
     for c in final.get("citations", []):
         if c["type"] == "document":
             lines.append(f"[{c['n']}] {c['title']} - {c['publisher']}, p.{c['page']}")
+        elif c["type"] == "rule":
+            crit = f" ({c['criterion']}, p.{c['page']})" if c.get("criterion") else f" ({c.get('basis')})"
+            lines.append(f"[{c['n']}] {c['title']}{crit}")
         else:
             cached = " (cached)" if c.get("cached") else ""
             lines.append(f"[{c['n']}] {c['title']}{cached}, {str(c.get('fetched_at', ''))[:16]} UTC")

@@ -211,12 +211,13 @@
     loadOverview();
   }
 
-  async function loadOverview(asOf) {
+  async function loadOverview(asOf, sowing) {
     const f = S.field;
     $("#risks").innerHTML = `<div class="risk skeleton"></div><div class="risk skeleton"></div>`;
     $("#w-src").textContent = "loading weather…"; $("#n-src").textContent = "loading satellite history (first time can take ~1 min)…";
     try {
-      const o = await api(`/api/fields/${f.id}/overview${asOf ? "?as_of=" + asOf : ""}`);
+      const qs = asOf ? `?as_of=${asOf}${sowing ? "&sowing_date=" + sowing : ""}` : "";
+      const o = await api(`/api/fields/${f.id}/overview${qs}`);
       if (S.field?.id !== f.id) return;
       drawWeather(o.weather); drawNdvi(o.ndvi); drawRisks(o.assessment);
       const st = o.assessment.stage;
@@ -325,6 +326,8 @@
     const risky = /risk|rain|heat|dry|below|warning/i.test(f.headline || "") && !/no (major|significant)/i.test(f.headline || "");
     const cites = (f.citations || []).map((c) => `<li>[${c.n}] ${c.type === "document"
         ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.title)}</a> — ${esc(c.publisher)}, p.${esc(c.page)}`
+        : c.type === "rule"
+        ? `${esc(c.title)} — ${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.criterion)}, p.${esc(c.page)}</a>` : esc(c.basis)}`
         : `${esc(c.title)} · ${esc((c.fetched_at || "").slice(0, 16))} UTC${c.cached ? " · CACHED" : ""}${c.url ? ` · <a href="${esc(c.url)}" target="_blank" rel="noopener">request</a>` : ""}`}</li>`).join("");
     const badges = [
       f.verified ? `<span class="pill pill-mint">✓ verified by critic</span>` : `<span class="pill pill-coral">partly verified · ${esc(f.removed_items)} item(s) removed</span>`,
@@ -352,7 +355,8 @@
     const d = $("#replay-date").value;
     if (!d) { toast("Pick a past date first", "warn"); $("#replay-date").classList.add("invalid"); return; }
     $("#replay-date").classList.remove("invalid");
-    startRun({ mode: "monitor", as_of: d }, "monitor"); loadOverview(d);
+    const sow = $("#replay-sowing").value || null;
+    startRun({ mode: "monitor", as_of: d, sowing_date: sow }, "monitor"); loadOverview(d, sow);
   };
   $("#btn-ask").onclick = () => {
     const q = $("#question").value.trim();

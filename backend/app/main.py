@@ -149,9 +149,11 @@ async def delete_field(field_id: str) -> Response:
 
 
 @app.get("/api/fields/{field_id}/overview")
-async def overview(field_id: str, as_of: date | None = None) -> dict:
+async def overview(field_id: str, as_of: date | None = None, sowing_date: date | None = None) -> dict:
     """Charts for the dashboard: weather, NDVI, stage and rule-based risks (no LLM)."""
     f = await _field_or_404(field_id)
+    if as_of and sowing_date:
+        f = {**f, "sowing_date": sowing_date.isoformat()}
     ref = as_of or date.today()
     replay = ref != date.today()
     sowing = date.fromisoformat(f["sowing_date"]) if f.get("sowing_date") else None
@@ -179,6 +181,7 @@ class RunIn(BaseModel):
     mode: Literal["monitor", "ask"] = "monitor"
     question: str | None = Field(default=None, max_length=1500)
     as_of: date | None = None
+    sowing_date: date | None = None   # replay only: that season's sowing date
     language: Literal["hi-IN", "ta-IN", "pa-IN", "en-IN"] | None = None
 
 
@@ -191,6 +194,12 @@ async def create_run(body: RunIn) -> dict:
         raise HTTPException(422, "Replay date cannot be in the future.")
     if body.as_of and body.as_of < date(2018, 1, 1):
         raise HTTPException(422, "Replay is available from 2018 onward (Sentinel-2 L2A archive).")
+    if body.sowing_date:
+        if not body.as_of:
+            raise HTTPException(422, "A sowing date override is only used with a replay date.")
+        if not timedelta(0) <= body.as_of - body.sowing_date <= timedelta(days=270):
+            raise HTTPException(422, "Replay sowing date must be within 9 months before the replay date.")
+        f = {**f, "sowing_date": body.sowing_date.isoformat()}
     rid = await start_run(f, body.mode, body.as_of, body.question, body.language)
     return {"run_id": rid}
 

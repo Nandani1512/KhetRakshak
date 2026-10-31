@@ -120,8 +120,13 @@ async def _embed_all(texts: list[str], batch: int = 20) -> list[list[float]]:
             wait = 5.0
             await asyncio.sleep(1.0)
         except (httpx.HTTPStatusError, httpx.TransportError) as exc:
-            if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code != 429:
-                raise
+            if isinstance(exc, httpx.HTTPStatusError):
+                if exc.response.status_code != 429:
+                    raise
+                if "per day" in exc.response.text:
+                    print("  daily embedding quota exhausted: saving partial index "
+                          "(un-embedded chunks stay keyword-searchable; rerun later to complete)", flush=True)
+                    return done
             print(f"  {type(exc).__name__}, waiting {wait:.0f}s", flush=True)
             await asyncio.sleep(wait)
             wait = min(wait * 2, 65.0)
@@ -134,10 +139,13 @@ async def main() -> None:
     vectors = await _embed_all([f"{c['title']}. {c['text']}" for c in chunks])
     config.INDEX_DIR.mkdir(parents=True, exist_ok=True)
     (config.INDEX_DIR / "chunks.json").write_text(json.dumps(chunks, ensure_ascii=False), encoding="utf-8")
-    matrix = np.asarray(vectors, dtype="float32")
-    matrix /= np.linalg.norm(matrix, axis=1, keepdims=True)
+    dim = len(vectors[0]) if vectors else 768
+    matrix = np.zeros((len(chunks), dim), dtype="float32")  # zero row = not embedded yet
+    if vectors:
+        done = np.asarray(vectors, dtype="float32")
+        matrix[:len(done)] = done / np.linalg.norm(done, axis=1, keepdims=True)
     np.save(config.INDEX_DIR / "embeddings.npy", matrix.astype("float16"))
-    print(f"indexed {len(chunks)} chunks, dim {matrix.shape[1]} -> {config.INDEX_DIR}")
+    print(f"indexed {len(chunks)} chunks ({len(vectors)} with embeddings), dim {dim} -> {config.INDEX_DIR}")
 
 
 if __name__ == "__main__":

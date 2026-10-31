@@ -53,7 +53,9 @@ def init() -> None:
     try:
         from psycopg_pool import ConnectionPool
 
+        # check= validates a connection before handing it out: Supabase's pooler drops idle ones.
         pool = ConnectionPool(_safe_dsn(config.DATABASE_URL), min_size=1, max_size=5, timeout=15,
+                              max_idle=120, check=ConnectionPool.check_connection,
                               kwargs={"autocommit": True, "prepare_threshold": None}, open=False)
         pool.open(wait=True, timeout=15)
         with pool.connection() as conn:
@@ -68,6 +70,15 @@ def init() -> None:
 
 
 def _query(sql: str, params: tuple = (), fetch: str | None = None):
+    import psycopg
+
+    try:
+        return _query_once(sql, params, fetch)
+    except psycopg.OperationalError:  # connection died mid-query: retry once on a fresh one
+        return _query_once(sql, params, fetch)
+
+
+def _query_once(sql: str, params: tuple, fetch: str | None):
     with _pool.connection() as conn:
         cur = conn.execute(sql, params)
         if fetch == "one":

@@ -6,9 +6,12 @@ embed() : batched embeddings for RAG.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
+
+import httpx
 
 from app import config
 from app.tools.base import describe_error, http
@@ -37,8 +40,16 @@ async def chat(messages: list[dict], *, tools: list[dict] | None = None, json_mo
             body["response_format"] = {"type": "json_object"}
         started = time.perf_counter()
         try:
-            resp = await http("POST", f"{config.GEMINI_BASE_URL}/chat/completions", source="Gemini",
-                              headers=_headers(), json=body, timeout=90.0, retries=2)
+            try:
+                resp = await http("POST", f"{config.GEMINI_BASE_URL}/chat/completions", source="Gemini",
+                                  headers=_headers(), json=body, timeout=90.0, retries=2)
+            except httpx.HTTPStatusError as exc:
+                # Per-minute quota: wait for the window to roll over once (daily quota: give up).
+                if exc.response.status_code != 429 or "per day" in exc.response.text:
+                    raise
+                await asyncio.sleep(12)
+                resp = await http("POST", f"{config.GEMINI_BASE_URL}/chat/completions", source="Gemini",
+                                  headers=_headers(), json=body, timeout=90.0, retries=1)
             msg = resp.json()["choices"][0]["message"]
             stats.update(calls=stats["calls"] + 1, last_latency_ms=int((time.perf_counter() - started) * 1000),
                          last_error=None)

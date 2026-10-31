@@ -302,17 +302,20 @@ def _build_evidence(state: AgentState) -> dict:
                                                        "net_price_per_qtl", "arrival_date")} for x in d["mandis"][:5]]}
     elif m:
         ev["D4"] = {"kind": "mandi prices", "unavailable": m.get("error")}
-    ev["risks"] = [{k: r[k] for k in ("type", "title", "score", "level", "window", "evidence", "rule", "basis")}
-                   for r in a.get("risks", [])]
+    for i, r in enumerate(a.get("risks", []), 1):
+        ev[f"R{i}"] = {"kind": "risk rule", "source": "KhetRakshak risk engine",
+                       **{k: r[k] for k in ("type", "title", "score", "level", "window", "evidence", "rule", "basis")},
+                       "criterion_source": (r.get("citation") or {}).get("title")}
     ev["data_gaps"] = a.get("gaps", [])
     return ev
 
 
 COMPOSE_SYSTEM = """You are KhetRakshak, writing a crop-risk alert / answer for an Indian smallholder farmer.
-You get EVIDENCE (tool outputs, refs D1..D4, plus computed risks) and SOURCES (official documents, refs S1..Sn).
+You get EVIDENCE (tool outputs D1..D4, computed risks R1..Rn) and SOURCES (official documents, refs S1..Sn).
 Hard rules:
 1. Use ONLY numbers that appear in EVIDENCE or in the SOURCES you cite. Never estimate or invent numbers.
-2. Every summary item must list refs (D# for data facts, S# for document facts).
+2. Every summary item must list refs: D# for data facts, R# for a computed risk (its numbers, normal and
+   departure live in that R#), S# for document facts. Use only ref ids that exist in EVIDENCE/SOURCES.
 3. Every action must cite at least one S# whose text clearly supports that action. If no source supports
    an action you think is needed, use exactly: "Contact your local Krishi Vigyan Kendra (KVK) for advice on <topic>."
    with refs [].
@@ -355,7 +358,7 @@ async def compose_node(state: AgentState) -> dict:
 
 def _deterministic_draft(state: AgentState, evidence: dict) -> dict:
     risks = (state.get("assessment") or {}).get("risks", [])
-    summary = [{"text": r["rule"], "refs": ["D1"] if r["type"] != "ndvi_anomaly" else ["D3"]} for r in risks[:3]]
+    summary = [{"text": r["rule"], "refs": [f"R{i}"]} for i, r in enumerate(risks[:3], 1)]
     if not summary:
         summary = [{"text": "No significant weather or crop-health risk detected in the data.", "refs": []}]
     actions = [{"when": "now", "action": KVK_ACTION, "refs": []}]
@@ -371,7 +374,7 @@ def _deterministic_draft(state: AgentState, evidence: dict) -> dict:
 # ------------------------------------------------------------------ critic
 
 DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{4}\b")
-REF_RE = re.compile(r"\[?\b[DS]\d+\b\]?")
+REF_RE = re.compile(r"\[?\b[DSR]\d+\b\]?")
 NUM_RE = re.compile(r"(?<![\w.])\d+(?:,\d{3})*(?:\.\d+)?")
 
 
@@ -407,9 +410,11 @@ def _matches(n: float, allowed: set[float]) -> bool:
     return False
 
 
-CRITIC_SYSTEM = """You verify a farm advisory against its cited sources. For each ACTION and SUMMARY item you get
-the text and the full text of the sources it cites. Flag an item only if its main claim is NOT supported by
-the cited text (or cites nothing while making a document-style claim). KVK referrals are always acceptable.
+CRITIC_SYSTEM = """You verify a farm advisory against its cited evidence. For each ACTION and SUMMARY item you get
+the text plus what it cites: "cited_documents" (official document passages) and "cited_data" (live tool outputs:
+weather, satellite NDVI, crop stage, mandi prices). Flag an item only if its main claim is NOT supported by what
+it cites, or if it gives agronomic advice without citing a document. A factual statement about weather, crop
+stage or prices is supported if the cited data shows it. KVK referrals are always acceptable.
 Return JSON {"unsupported": [{"kind": "action"|"summary", "index": int, "reason": str}]}."""
 
 
@@ -418,7 +423,7 @@ async def critic_node(state: AgentState) -> dict:
     rid, draft, loops = state["run_id"], state.get("draft") or {}, state.get("loops", 0)
     evidence, sources = state.get("evidence") or {}, state.get("sources", [])
     by_ref = {s["ref"]: s for s in sources}
-    data_refs = {k for k in evidence if re.fullmatch(r"D\d", k) and "unavailable" not in evidence[k]}
+    data_refs = {k for k in evidence if re.fullmatch(r"[DR]\d+", k) and "unavailable" not in evidence[k]}
     issues, checked_numbers, checked_refs = [], 0, 0
 
     items = [("summary", i, x) for i, x in enumerate(draft.get("summary") or [])]
@@ -461,7 +466,8 @@ async def critic_node(state: AgentState) -> dict:
     judge_note = "skipped"
     if state.get("model") != "deterministic" and items:
         payload = [{"kind": k, "index": i, "text": x.get("text") or x.get("action"),
-                    "cited_sources": [by_ref[r]["text"] for r in (x.get("refs") or []) if r in by_ref]}
+                    "cited_documents": [by_ref[r]["text"] for r in (x.get("refs") or []) if r in by_ref],
+                    "cited_data": {r: evidence[r] for r in (x.get("refs") or []) if r in data_refs}}
                    for k, i, x in items if k in ("summary", "action")]
         try:
             verdict, _ = await llm.chat_json(CRITIC_SYSTEM, json.dumps(payload, ensure_ascii=False), temperature=0)
@@ -535,6 +541,13 @@ async def finalize_node(state: AgentState) -> dict:
             s = by_ref[r]
             citations.append({"n": n, "ref": r, "type": "document", "title": s["title"], "publisher": s["publisher"],
                               "page": s["page"], "url": s["url"], "excerpt": s["text"][:300]})
+        elif r.startswith("R"):
+            e = evidence[r]
+            risk = next((x for x in (state.get("assessment") or {}).get("risks", []) if x["title"] == e["title"]), {})
+            cit = risk.get("citation") or {}
+            citations.append({"n": n, "ref": r, "type": "rule", "title": f"Risk rule: {e['title']}",
+                              "basis": e.get("basis"), "criterion": cit.get("title"), "page": cit.get("page"),
+                              "url": cit.get("url"), "excerpt": cit.get("quote")})
         else:
             e = evidence[r]
             citations.append({"n": n, "ref": r, "type": "data", "title": e.get("source"), "kind": e.get("kind"),
@@ -542,6 +555,12 @@ async def finalize_node(state: AgentState) -> dict:
                               "url": (state["tools"].get({"D1": "weather", "D2": "climatology", "D3": "satellite",
                                                           "D4": "market"}[r]) or {}).get("source_url")})
     num = {c["ref"]: c["n"] for c in citations}
+
+    inline_ref = re.compile(r"\s*\((?:[DSR]\d+(?:,\s*)?)+\)")
+    for item in (draft.get("summary") or []) + (draft.get("actions") or []) + ([draft["market"]] if draft.get("market") else []):
+        for key in ("text", "action"):
+            if item.get(key):
+                item[key] = inline_ref.sub("", item[key])
 
     def mark(item: dict) -> str:
         ns = sorted({num[r] for r in item.get("refs") or [] if r in num})

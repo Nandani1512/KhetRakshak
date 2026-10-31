@@ -13,8 +13,8 @@ def _get(key: str, default: str = "") -> str:
 
 
 GEMINI_API_KEY = _get("GEMINI_API_KEY")
-GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_FALLBACK_MODEL = _get("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash-lite")
+GEMINI_MODEL = _get("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_FALLBACK_MODEL = _get("GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest")
 GEMINI_EMBED_MODEL = _get("GEMINI_EMBED_MODEL", "gemini-embedding-001")
 GEMINI_BASE_URL = _get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai").rstrip("/")
 

@@ -218,9 +218,10 @@
             <div class="head-actions">
               <button id="btn-run" class="btn btn-primary"><i data-lucide="play"></i><span data-i18n="run_now">Run monitoring now</span></button>
               <div class="row">
-                <input type="date" id="replay-date" class="input" aria-label="Replay date">
-                <button id="btn-replay" class="btn" title="Run the agent on a past date with archived data"><i data-lucide="history"></i><span data-i18n="replay">Replay</span></button>
+                <label class="lbl"><span data-i18n="replay_date">Replay date</span><input type="date" id="replay-date" class="input"></label>
+                <label class="lbl"><span data-i18n="replay_sowing">That season's sowing</span><input type="date" id="replay-sowing" class="input"></label>
               </div>
+              <button id="btn-replay" class="btn" title="Run the agent on a past date with archived data"><i data-lucide="history"></i><span data-i18n="replay">Replay</span></button>
               <button id="btn-telegram" class="btn"><i data-lucide="send"></i><span data-i18n="link_tg">Link Telegram</span></button>
             </div>
           </div>
