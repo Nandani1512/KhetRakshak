@@ -329,6 +329,30 @@ Return JSON: {"headline": str, "summary": [{"text": str, "refs": [str]}],
 "actions": [{"when": str, "action": str, "refs": [str]}], "market": {"text": str, "refs": [str]} | null}"""
 
 
+def _normalize_draft(raw: Any) -> dict:
+    """Coerce model output into the expected shape so a malformed draft can't crash later nodes."""
+    raw = raw if isinstance(raw, dict) else {}
+
+    def refs(x: Any) -> list[str]:
+        if isinstance(x, str):
+            x = re.split(r"[,\s]+", x)
+        return [str(r).strip("[]() ") for r in (x or []) if str(r).strip("[]() ")]
+
+    def items(xs: Any, key: str) -> list[dict]:
+        out = []
+        for x in xs if isinstance(xs, list) else []:
+            if isinstance(x, str):
+                x = {key: x}
+            if isinstance(x, dict) and str(x.get(key) or "").strip():
+                out.append({**x, key: str(x[key]).strip(), "refs": refs(x.get("refs"))})
+        return out
+
+    actions = [{**a, "when": str(a.get("when") or "now")} for a in items(raw.get("actions"), "action")]
+    market = items([raw.get("market")], "text")
+    return {"headline": str(raw.get("headline") or "").strip(), "summary": items(raw.get("summary"), "text"),
+            "actions": actions, "market": market[0] if market else None}
+
+
 def _sources_block(sources: list[dict]) -> str:
     return "\n\n".join(f"[{s['ref']}] {s['title']} ({s['publisher']}), page {s['page']}:\n{s['text']}" for s in sources)
 
@@ -347,7 +371,8 @@ async def compose_node(state: AgentState) -> dict:
     user = (f"{task}\n\nEVIDENCE:\n{json.dumps(evidence, ensure_ascii=False, default=str)}\n\n"
             f"SOURCES:\n{_sources_block(state.get('sources', []))}{feedback}")
     try:
-        draft, model = await llm.chat_json(COMPOSE_SYSTEM, user, temperature=0.2)
+        raw, model = await llm.chat_json(COMPOSE_SYSTEM, user, temperature=0.2)
+        draft = _normalize_draft(raw)
     except Exception as exc:  # noqa: BLE001 - LLM down or malformed: deterministic, data-only alert
         await events.emit(rid, "compose", "fallback", f"LLM unavailable ({type(exc).__name__}); "
                                                       "building data-only alert from risk engine")
@@ -510,7 +535,11 @@ def _strip_failing(draft: dict, issues: list[str]) -> tuple[dict, int]:
     out["actions"] = actions
     if bad["market"]:
         out["market"] = None
-    return out, sum(len(v) for v in bad.values())
+    removed = sum(len(v) for v in bad.values())
+    if any(msg.startswith("headline") for msg in issues):  # unverified numbers in the headline
+        out["headline"] = "Update for your field"
+        removed += 1
+    return out, removed
 
 
 @_node("finalize")
@@ -556,7 +585,7 @@ async def finalize_node(state: AgentState) -> dict:
                                                           "D4": "market"}[r]) or {}).get("source_url")})
     num = {c["ref"]: c["n"] for c in citations}
 
-    inline_ref = re.compile(r"\s*\((?:[DSR]\d+(?:,\s*)?)+\)")
+    inline_ref = re.compile(r"\s*[\(\[](?:[DSR]\d+(?:,\s*)?)+[\)\]]")
     for item in (draft.get("summary") or []) + (draft.get("actions") or []) + ([draft["market"]] if draft.get("market") else []):
         for key in ("text", "action"):
             if item.get(key):
@@ -594,7 +623,8 @@ async def voice_node(state: AgentState) -> dict:
     try:
         final["text_local"] = await voice.translate(final["text_en"], lang)
         final["voice_local"] = await voice.translate(final["voice_en"], lang)
-        await events.emit(rid, "voice", "translated", f"translated to {voice.LANGUAGES.get(lang, lang)} (Sarvam)")
+        await events.emit(rid, "voice", "translated", "English selected: no translation needed" if lang == "en-IN"
+                          else f"translated to {voice.LANGUAGES.get(lang, lang)} (Sarvam)")
     except Exception as exc:  # noqa: BLE001
         final["text_local"], final["voice_local"] = final["text_en"], final["voice_en"]
         final["translation_error"] = str(exc)[:200]

@@ -28,6 +28,23 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 log = logging.getLogger("khetrakshak")
 IST = timezone(timedelta(hours=5, minutes=30))
+REPLAY_MIN_AGE = timedelta(days=21)   # archive lags ~5 days and replay needs the 16 days after as_of
+MAX_ACTIVE_RUNS = 4
+
+
+def _check_replay_date(as_of: date | None) -> None:
+    if as_of is None:
+        return
+    if as_of > date.today() - REPLAY_MIN_AGE:
+        raise HTTPException(422, "Replay dates must be at least 21 days in the past (the replay uses the "
+                                 "observed weather of the 16 days after that date).")
+    if as_of < date(2018, 1, 1):
+        raise HTTPException(422, "Replay is available from 2018 onward (Sentinel-2 L2A archive).")
+
+
+def _require_admin(token: str | None) -> None:
+    if config.ADMIN_TOKEN and token != config.ADMIN_TOKEN:
+        raise HTTPException(403, "admin token required")
 state = {"telegram": "not started", "started_at": datetime.now(timezone.utc).isoformat()}
 
 
@@ -143,7 +160,8 @@ async def get_field(field_id: str) -> dict:
 
 
 @app.delete("/api/fields/{field_id}", status_code=204)
-async def delete_field(field_id: str) -> Response:
+async def delete_field(field_id: str, x_admin_token: str | None = Header(default=None)) -> Response:
+    _require_admin(x_admin_token)
     await db.delete_field(field_id)
     return Response(status_code=204)
 
@@ -152,6 +170,7 @@ async def delete_field(field_id: str) -> Response:
 async def overview(field_id: str, as_of: date | None = None, sowing_date: date | None = None) -> dict:
     """Charts for the dashboard: weather, NDVI, stage and rule-based risks (no LLM)."""
     f = await _field_or_404(field_id)
+    _check_replay_date(as_of)
     if as_of and sowing_date:
         f = {**f, "sowing_date": sowing_date.isoformat()}
     ref = as_of or date.today()
@@ -190,10 +209,9 @@ async def create_run(body: RunIn) -> dict:
     f = await _field_or_404(body.field_id)
     if body.mode == "ask" and not (body.question or "").strip():
         raise HTTPException(422, "Please type or speak a question.")
-    if body.as_of and body.as_of > date.today():
-        raise HTTPException(422, "Replay date cannot be in the future.")
-    if body.as_of and body.as_of < date(2018, 1, 1):
-        raise HTTPException(422, "Replay is available from 2018 onward (Sentinel-2 L2A archive).")
+    _check_replay_date(body.as_of)
+    if events.active_runs() >= MAX_ACTIVE_RUNS:
+        raise HTTPException(429, "The agent is busy with other runs. Please try again in a minute.")
     if body.sowing_date:
         if not body.as_of:
             raise HTTPException(422, "A sowing date override is only used with a replay date.")
@@ -281,8 +299,7 @@ class SourceToggle(BaseModel):
 @app.post("/api/admin/sources")
 async def toggle_source(body: SourceToggle, x_admin_token: str | None = Header(default=None)) -> dict:
     """Demo control: switch a live data source off to show graceful degradation."""
-    if config.ADMIN_TOKEN and x_admin_token != config.ADMIN_TOKEN:
-        raise HTTPException(403, "admin token required")
+    _require_admin(x_admin_token)
     (DISABLED_SOURCES.discard if body.enabled else DISABLED_SOURCES.add)(body.source)
     return {"disabled_sources": sorted(DISABLED_SOURCES)}
 

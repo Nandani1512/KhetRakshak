@@ -21,7 +21,8 @@
   }
 
   async function api(path, opts = {}) {
-    const res = await fetch(path, { headers: opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {}, ...opts });
+    const headers = opts.headers || (opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : {});
+    const res = await fetch(path, { ...opts, headers });
     if (!res.ok) {
       let detail = `HTTP ${res.status}`;
       try { const j = await res.json(); detail = j.detail || j.error || detail; } catch { /* not JSON */ }
@@ -99,8 +100,16 @@
     const off = new Set(S.health?.disabled_sources || []);
     $("#source-toggles").innerHTML = SOURCES.map((s) => `<label class="toggle"><span>${esc(s)}</span><input type="checkbox" data-src="${esc(s)}" ${off.has(s) ? "" : "checked"} aria-label="${esc(s)} enabled"></label>`).join("");
     document.querySelectorAll("#source-toggles input").forEach((cb) => cb.onchange = async () => {
+      const send = (token) => api("/api/admin/sources", { method: "POST", headers: { "Content-Type": "application/json", "X-Admin-Token": token },
+                                                          body: JSON.stringify({ source: cb.dataset.src, enabled: cb.checked }) });
       try {
-        await api("/api/admin/sources", { method: "POST", body: JSON.stringify({ source: cb.dataset.src, enabled: cb.checked }) });
+        try { await send(store.get("kr-admin", "")); }
+        catch (e) {
+          if (!/admin token/i.test(e.message)) throw e;
+          const tok = window.prompt("Admin token for demo controls:") || "";
+          store.set("kr-admin", tok);
+          await send(tok);
+        }
         toast(`${cb.dataset.src} ${cb.checked ? "ON" : "OFF"}`, cb.checked ? "" : "warn");
         loadHealth();
       } catch (e) { toast(e.message, "error"); cb.checked = !cb.checked; }
@@ -398,7 +407,7 @@
   };
 
   // ---------------------------------------------------------------- boot
-  $("#replay-date").max = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  $("#replay-date").max = new Date(Date.now() - 21 * 86400000).toISOString().slice(0, 10);
   $("#replay-date").min = "2018-01-01";
   applyLang(); applyLowData(); icons(); route();
   loadHealth(); loadFields();

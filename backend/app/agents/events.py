@@ -14,6 +14,7 @@ _events: dict[str, list[dict]] = {}
 _subscribers: dict[str, list[asyncio.Queue]] = {}
 _done: set[str] = set()
 artifacts: dict[str, dict[str, Any]] = {}   # run_id -> {"audio": bytes, ...}
+MAX_KEPT_RUNS = 40
 
 
 async def emit(run_id: str, node: str, status: str, message: str, data: Any = None) -> None:
@@ -30,6 +31,12 @@ async def emit(run_id: str, node: str, status: str, message: str, data: Any = No
 
 def close(run_id: str) -> None:
     _done.add(run_id)
+    for old in list(artifacts)[:-MAX_KEPT_RUNS]:  # dicts keep insertion order: drop the oldest
+        artifacts.pop(old, None)
+    for old in list(_events)[:-MAX_KEPT_RUNS * 5]:
+        if old in _done and not _subscribers.get(old):
+            _events.pop(old, None)
+            _done.discard(old)
     for q in _subscribers.get(run_id, []):
         q.put_nowait(None)
 
@@ -50,6 +57,10 @@ async def stream(run_id: str):
             yield ev
     finally:
         _subscribers[run_id].remove(q)
+
+
+def active_runs() -> int:
+    return sum(1 for r in _events if r not in _done)
 
 
 def is_known(run_id: str) -> bool:

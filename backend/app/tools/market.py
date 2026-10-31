@@ -107,6 +107,10 @@ async def get_market(lat: float, lon: float, state: str, crop: str,
             _geocode(_clean_market_name(m), state) for m in by_market))
         mandis = []
         for (market, r), loc in zip(by_market.items(), located):
+            try:
+                prices = {k: float(r[k]) for k in ("modal_price", "min_price", "max_price")}
+            except (KeyError, TypeError, ValueError):
+                continue  # e.g. "NR" (not reported) in a price column
             approx = False
             if loc is None:
                 loc = await _geocode(r["district"], state)
@@ -114,8 +118,7 @@ async def get_market(lat: float, lon: float, state: str, crop: str,
             if loc is None:
                 continue
             mandis.append({"market": market, "district": r["district"], "variety": r.get("variety"),
-                           "modal_price": float(r["modal_price"]), "min_price": float(r["min_price"]),
-                           "max_price": float(r["max_price"]), "arrival_date": r["arrival_date"],
+                           **prices, "arrival_date": r["arrival_date"],
                            "lat": loc[0], "lon": loc[1], "location_approx": approx})
         if not mandis:
             raise RuntimeError("reporting mandis could not be located")

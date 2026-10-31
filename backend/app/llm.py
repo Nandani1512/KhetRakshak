@@ -45,7 +45,7 @@ async def chat(messages: list[dict], *, tools: list[dict] | None = None, json_mo
                                   headers=_headers(), json=body, timeout=90.0, retries=2)
             except httpx.HTTPStatusError as exc:
                 # Per-minute quota: wait for the window to roll over once (daily quota: give up).
-                if exc.response.status_code != 429 or "per day" in exc.response.text:
+                if exc.response.status_code != 429 or re.search(r"per ?day", exc.response.text, re.I):
                     raise
                 await asyncio.sleep(12)
                 resp = await http("POST", f"{config.GEMINI_BASE_URL}/chat/completions", source="Gemini",

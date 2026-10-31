@@ -46,13 +46,16 @@ def _chunks(text: str, limit: int) -> list[str]:
 async def translate(text: str, target: str, source: str = "en-IN") -> str:
     if target == source:
         return text
-    parts = []
-    for chunk in _chunks(text, TRANSLATE_CHUNK):
-        resp = await http("POST", f"{SARVAM}/translate", source="Sarvam", headers=_headers(), json={
-            "input": chunk, "source_language_code": source, "target_language_code": target,
-            "model": config.SARVAM_TRANSLATE_MODEL})
-        parts.append(resp.json()["translated_text"])
-    return " ".join(parts)
+    lines = []
+    for line in text.split("\n"):
+        parts = []
+        for chunk in _chunks(line, TRANSLATE_CHUNK) if line.strip() else []:
+            resp = await http("POST", f"{SARVAM}/translate", source="Sarvam", headers=_headers(), json={
+                "input": chunk, "source_language_code": source, "target_language_code": target,
+                "model": config.SARVAM_TRANSLATE_MODEL})
+            parts.append(resp.json()["translated_text"])
+        lines.append(" ".join(parts))
+    return "\n".join(lines)
 
 
 def _join_wavs(blobs: list[bytes]) -> bytes:

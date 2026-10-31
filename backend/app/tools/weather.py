@@ -53,7 +53,7 @@ async def get_weather(lat: float, lon: float, as_of: date | None = None) -> Tool
             source="Open-Meteo Historical Archive (ERA5)", source_url=str(resp.url), confidence=0.95,
             notes=["Historical replay: the 'forecast' window is observed reanalysis data for those dates"])
 
-    key = f"weather:{lat:.3f}:{lon:.3f}:{(as_of or today).isoformat()}"
+    key = f"weather:{lat:.3f}:{lon:.3f}:" + (as_of.isoformat() if replay else "live")
     attempts = [("Open-Meteo Archive", replay_attempt)] if replay else [("Open-Meteo Forecast", live)]
     return await run_with_fallbacks("Open-Meteo", attempts, cache_key=key)
 

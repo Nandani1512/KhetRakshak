@@ -45,6 +45,14 @@ def crop_stage(ndvi: dict | None, sowing: date | None, as_of: date) -> dict:
     if not pts:
         return {**out, "stage": "unknown", "method": "no clear satellite view",
                 "explanation": "No cloud-free satellite view this season; stage cannot be observed."}
+    if sowing is None and len(pts) >= 3:
+        # No sowing date: the current season starts at the last NDVI trough (bare field between crops),
+        # so a previous crop's peak is not mistaken for this crop's.
+        trough = min(range(len(pts)), key=lambda i: pts[i]["ndvi"])
+        if trough < len(pts) - 1:
+            pts = pts[trough:]
+            out["season_start_estimate"] = pts[0]["date"]
+            out["method"] = "NDVI phenology (season start = last NDVI trough)"
     latest = pts[-1]["ndvi"]
     peak = max(p["ndvi"] for p in pts)
     recent = [p for p in pts if (as_of - date.fromisoformat(p["date"])).days <= 35]
@@ -62,8 +70,10 @@ def crop_stage(ndvi: dict | None, sowing: date | None, as_of: date) -> dict:
         stage, why = "sown / early establishment", "field still mostly bare soil (low greenness)"
     elif slope > 0.002:
         stage, why = "vegetative growth", "greenness rising over the last 5 weeks"
-    elif latest >= 0.85 * peak:
+    elif latest >= 0.85 * peak and peak >= 0.6:  # only a dense canopy counts as "peak"
         stage, why = "peak canopy (flowering / grain filling likely)", "greenness near its season peak"
+    elif peak < 0.6 and latest >= 0.85 * peak:
+        stage, why = "vegetative growth", "canopy still developing (greenness not yet dense)"
     else:
         stage, why = "maturing (harvest window)", "greenness declining from its season peak"
     return {**out, "stage": stage, "explanation": why}

@@ -129,9 +129,10 @@ async def start() -> str:
     try:
         bot_username = (await call("getMe"))["username"]
         if config.PUBLIC_BASE_URL:
-            await call("setWebhook", json={"url": f"{config.PUBLIC_BASE_URL}/api/telegram/webhook",
-                                           "secret_token": config.TELEGRAM_WEBHOOK_SECRET or None,
-                                           "allowed_updates": ["message"]})
+            hook = {"url": f"{config.PUBLIC_BASE_URL}/api/telegram/webhook", "allowed_updates": ["message"]}
+            if config.TELEGRAM_WEBHOOK_SECRET:
+                hook["secret_token"] = config.TELEGRAM_WEBHOOK_SECRET
+            await call("setWebhook", json=hook)
             return "webhook"
         await call("deleteWebhook")
         asyncio.create_task(_poll())
