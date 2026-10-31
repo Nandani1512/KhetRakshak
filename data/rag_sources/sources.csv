@@ -1,0 +1,10 @@
+id,title,publisher,year,url,crops,states,kind
+pau_rabi,Package of Practices for Crops of Punjab - Rabi 2024-25,Punjab Agricultural University (PAU) Ludhiana,2024,https://www.pau.edu/content/ccil/pf/pp_rabi.pdf,wheat;mustard,Punjab,pdf
+pau_kharif,Package of Practices for Crops of Punjab - Kharif,Punjab Agricultural University (PAU) Ludhiana,2025,https://www.pau.edu/content/ccil/pf/pp_kharif.pdf,paddy,Punjab,pdf
+crida_ludhiana,Agriculture Contingency Plan for District Ludhiana,ICAR-CRIDA / PAU,2011,https://icar-crida.res.in/CP/Punjab/PAU%2C%20Ludhiana/PUNJAB%205-Ludhiana%2030.04.2011.pdf,paddy;wheat;mustard,Punjab,pdf
+crida_thanjavur,Agriculture Contingency Plan of District Thanjavur,ICAR-CRIDA / TNAU,2011,https://icar-crida.res.in/CP/Tamilnadu/TNAU%2C%20Coimbattore/TN9-Thanjavur%203.2.2011.pdf,paddy,Tamil Nadu,pdf
+tnau_cpg,Crop Production Guide 2012,Tamil Nadu Agricultural University (TNAU),2012,https://agritech.tnau.ac.in/pdf/2013/CPG%202012.pdf,paddy;mustard,Tamil Nadu,pdf
+tnau_rice_seasons,Rice - Seasons and Varieties,TNAU Agritech Portal,2024,https://agritech.tnau.ac.in/agriculture/agri_seasonandvarieties_rice.html,paddy,Tamil Nadu,html
+tnau_nem_2023,TNAU Seasonal Rainfall Forecast for Northeast Monsoon 2023,Tamil Nadu Agricultural University (TNAU),2023,https://agritech.tnau.ac.in/tnaupressnotes/pdf/2023/TNAU%20seasonal%20rainfall%20forecast%20for%20Northeast%20monsoon%2C%202023%20-%20Eng.pdf,paddy,Tamil Nadu,pdf
+imd_heatwave_2022,IMD Press Release 1 April 2022 (heat wave conditions bulletin),India Meteorological Department (IMD),2022,https://internal.imd.gov.in/press_release/20220401_pr_1548.pdf,paddy;wheat;mustard,all,pdf
+imd_pr_820,IMD Press Release 23 May 2020 - Annexure: heat wave and heavy rainfall criteria,India Meteorological Department (IMD),2020,https://internal.imd.gov.in/press_release/20200523_pr_820.pdf,paddy;wheat;mustard,all,pdf
