@@ -100,17 +100,23 @@ async def get_market(lat: float, lon: float, state: str, crop: str,
         records, url = await _agmarknet(state, commodity)
         if not records:
             raise RuntimeError(f"no {commodity} arrivals reported in {state} today")
+        def valid(r: dict) -> bool:
+            try:
+                return all(float(r[k]) >= 0 for k in ("modal_price", "min_price", "max_price"))
+            except (KeyError, TypeError, ValueError):
+                return False  # e.g. "NR" (not reported) in a price column
+
         by_market: dict[str, dict] = {}
         for r in records:
-            by_market.setdefault(r["market"], r)
+            if valid(r):
+                by_market.setdefault(r["market"], r)
+        if not by_market:
+            raise RuntimeError(f"{len(records)} {commodity} rows in {state} today, none with valid prices")
         located = await asyncio.gather(*(
             _geocode(_clean_market_name(m), state) for m in by_market))
         mandis = []
         for (market, r), loc in zip(by_market.items(), located):
-            try:
-                prices = {k: float(r[k]) for k in ("modal_price", "min_price", "max_price")}
-            except (KeyError, TypeError, ValueError):
-                continue  # e.g. "NR" (not reported) in a price column
+            prices = {k: float(r[k]) for k in ("modal_price", "min_price", "max_price")}
             approx = False
             if loc is None:
                 loc = await _geocode(r["district"], state)

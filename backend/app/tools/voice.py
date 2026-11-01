@@ -5,6 +5,7 @@ with ffmpeg first. Long text is split into sentence chunks to stay under per-req
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import io
 import re
@@ -46,16 +47,19 @@ def _chunks(text: str, limit: int) -> list[str]:
 async def translate(text: str, target: str, source: str = "en-IN") -> str:
     if target == source:
         return text
-    lines = []
-    for line in text.split("\n"):
-        parts = []
-        for chunk in _chunks(line, TRANSLATE_CHUNK) if line.strip() else []:
-            resp = await http("POST", f"{SARVAM}/translate", source="Sarvam", headers=_headers(), json={
-                "input": chunk, "source_language_code": source, "target_language_code": target,
-                "model": config.SARVAM_TRANSLATE_MODEL})
-            parts.append(resp.json()["translated_text"])
-        lines.append(" ".join(parts))
-    return "\n".join(lines)
+    async def one(chunk: str) -> str:
+        resp = await http("POST", f"{SARVAM}/translate", source="Sarvam", headers=_headers(), json={
+            "input": chunk, "source_language_code": source, "target_language_code": target,
+            "model": config.SARVAM_TRANSLATE_MODEL})
+        return resp.json()["translated_text"]
+
+    async def line(text_line: str) -> str:
+        if not text_line.strip():
+            return ""
+        return " ".join(await asyncio.gather(*(one(c) for c in _chunks(text_line, TRANSLATE_CHUNK))))
+
+    # Line by line keeps the alert's structure; lines run concurrently so it stays fast.
+    return "\n".join(await asyncio.gather(*(line(t) for t in text.split("\n"))))
 
 
 def _join_wavs(blobs: list[bytes]) -> bytes:

@@ -343,6 +343,8 @@ def _normalize_draft(raw: Any) -> dict:
         for x in xs if isinstance(xs, list) else []:
             if isinstance(x, str):
                 x = {key: x}
+            if isinstance(x, dict) and not str(x.get(key) or "").strip():
+                x = {**x, key: x.get("text") or x.get("action") or ""}  # model used the other key name
             if isinstance(x, dict) and str(x.get(key) or "").strip():
                 out.append({**x, key: str(x[key]).strip(), "refs": refs(x.get("refs"))})
         return out
@@ -550,9 +552,12 @@ async def finalize_node(state: AgentState) -> dict:
                  "citations": [], "text_en": state["refusal"], "voice_en": state["refusal"], "refused": True}
         return {"final": final}
 
-    draft = state.get("draft") or {}
+    draft = dict(state.get("draft") or {})
     critic = state.get("critic") or {}
     removed = 0
+    if not draft.get("headline"):
+        risks = (state.get("assessment") or {}).get("risks", [])
+        draft["headline"] = risks[0]["title"] if risks else "Update for your field"
     if not critic.get("passed"):
         draft, removed = _strip_failing(draft, critic.get("issues", []))
         await events.emit(rid, "finalize", "fallback", f"removed {removed} unverified item(s), added KVK referral")
